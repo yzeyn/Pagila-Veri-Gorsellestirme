@@ -12,7 +12,7 @@ varsayilan_ayarlar = {
 }
 
 with DAG(
-    dag_id='veri_pazari_cografi_satis_akis',  # Tamamen Türkçe DAG ismi
+    dag_id='cografi_satis_dagilimi',
     default_args=varsayilan_ayarlar,
     description='Ülke ve şehir bazlı coğrafi satış ve müşteri dağılımını analiz eder',
     start_date=datetime(2026, 1, 1),
@@ -20,12 +20,11 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # 1. Aşama: Hedef Veri Pazarı (Data Mart) Tablosunu Oluştur
     tablo_olusturma_gorevi = SQLExecuteQueryOperator(
         task_id='cografi_satis_tablosu_olustur',
         conn_id='postgres_pagila',
         sql="""
-            CREATE TABLE IF NOT EXISTS vp_cografi_satis (
+            CREATE TABLE IF NOT EXISTS cografi_satis_tablosu (
                 ulke_adi VARCHAR(50),
                 sehir_adi VARCHAR(50),
                 toplam_musteri_sayisi INT,
@@ -35,16 +34,14 @@ with DAG(
             );
         """,
     )
-
-    # 2. Aşama: E-T-L (Extract - Transform - Load) İşlemi
-    # Müşteri adres verilerini konum bilgileriyle birleştirip ülke/şehir bazında özetler
+    
     veri_isle_ve_yukle_gorevi = SQLExecuteQueryOperator(
-        task_id='cografi_verileri_agregate_et_ve_yukle',
+        task_id='cografi_verileri_yukle',
         conn_id='postgres_pagila',
         sql="""
-            TRUNCATE TABLE vp_cografi_satis;
+            TRUNCATE TABLE cografi_satis_tablosu;
             
-            INSERT INTO vp_cografi_satis (
+            INSERT INTO cografi_satis_tablosu (
                 ulke_adi, 
                 sehir_adi, 
                 toplam_musteri_sayisi, 
@@ -53,9 +50,7 @@ with DAG(
             SELECT 
                 co.country AS ulke_adi,
                 ci.city AS sehir_adi,
-                -- Ülke ve şehirdeki benzersiz müşteri sayısı
                 COUNT(DISTINCT cu.customer_id) AS toplam_musteri_sayisi,
-                -- O bölgeden elde edilen toplam ciro/hasılat (Transform)
                 ROUND(SUM(p.amount), 2) AS toplam_hasilat
             FROM customer cu
             JOIN address a ON cu.address_id = a.address_id

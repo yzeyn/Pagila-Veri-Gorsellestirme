@@ -6,7 +6,7 @@ from airflow.providers.common.sql.operators.sql import \
 from airflow import DAG
 
 default_args = {
-    'owner': 'data_engineer',
+    'owner': 'veri_muhendisi',
     'retries': 2,
     'retry_delay': timedelta(minutes=2),
 }
@@ -20,13 +20,12 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # 1. Aşama: Hedef Data Mart Tablosunu Oluştur
     tablo_olustur = SQLExecuteQueryOperator(
-        task_id='create_aktor_populerlik',
+        task_id='aktor_populerlik_tablo_olustur',
         conn_id='postgres_pagila',
         sql="""
-            CREATE TABLE IF NOT EXISTS dm_actor_rankings (
-                actor_id INT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS aktor_populerlik (
+                aktor_id INT PRIMARY KEY,
                 aktor_adi VARCHAR(150),
                 toplam_film_sayisi INT,
                 toplam_hasilat NUMERIC(10,2),
@@ -36,15 +35,14 @@ with DAG(
         """,
     )
 
-    # 2. Aşama: E-T-L (Extract - Transform - Load) İşlemi
     aktor_hasilat_yukle = SQLExecuteQueryOperator(
-        task_id='calculate_actor_rankings_and_load',
+        task_id='aktor_hasilat_yukle',
         conn_id='postgres_pagila',
         sql="""
-            TRUNCATE TABLE dm_actor_rankings;
+            TRUNCATE TABLE aktor_populerlik;
             
-            INSERT INTO dm_actor_rankings (
-                actor_id, 
+            INSERT INTO aktor_populerlik (
+                aktor_id, 
                 aktor_adi, 
                 toplam_film_sayisi, 
                 toplam_hasilat, 
@@ -52,7 +50,7 @@ with DAG(
             )
             WITH aktor_hasilat AS (
                 SELECT 
-                    a.actor_id,
+                    a.actor_id AS aktor_id,
                     CONCAT(a.first_name, ' ', a.last_name) AS aktor_adi,
                     COUNT(DISTINCT fa.film_id) AS toplam_film_sayisi,
                     ROUND(SUM(p.amount), 2) AS toplam_hasilat
@@ -65,11 +63,10 @@ with DAG(
                 GROUP BY a.actor_id, a.first_name, a.last_name
             )
             SELECT 
-                actor_id,
+                aktor_id,
                 aktor_adi,
                 toplam_film_sayisi,
                 toplam_hasilat,
-                -- Hasılat miktarına göre aktörleri 1'den başlayarak sıralıyoruz (Transform)
                 ROW_NUMBER() OVER (ORDER BY toplam_hasilat DESC) AS aktor_siralamasi
             FROM aktor_hasilat;
         """,

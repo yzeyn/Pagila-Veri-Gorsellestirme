@@ -6,60 +6,54 @@ from airflow.providers.common.sql.operators.sql import \
 from airflow import DAG
 
 default_args = {
-    'owner': 'data_engineer',
+    'owner': 'veri_muhendisi',
     'retries': 2,
     'retry_delay': timedelta(minutes=2),
 }
 
 with DAG(
-    dag_id='magaza_gunluk_performans',
+    dag_id='magaza_haftalik_performans',
     default_args=default_args,
-    description='Mağaza bazlı günlük ciro ve işlem sayısı performansını hesaplar',
+    description='Mağaza bazlı haftalık ciro ve işlem sayısı performansını hesaplar',
     start_date=datetime(2026, 1, 1),
-    schedule_interval='@daily',
+    schedule_interval='@weekly',
     catchup=False,
 ) as dag:
 
-    # 1. Aşama: Hedef Data Mart Tablosunu Oluştur (Eğer yoksa)
     tablo_olustur = SQLExecuteQueryOperator(
-        task_id='create_dm_daily_store_performance',
+        task_id='magaza_performans_tablosu_olustur',
         conn_id='postgres_pagila',
         sql="""
-            CREATE TABLE IF NOT EXISTS dm_daily_store_performance (
+            CREATE TABLE IF NOT EXISTS magaza_haftalik_satis (
                 islem_tarihi DATE,
-                store_id INT,
-                majoz_personel VARCHAR(100),
+                magaza_id INT,
+                personel VARCHAR(100),
                 toplam_ciro NUMERIC(10,2),
                 toplam_islem_sayisi INT,
                 guncellenme_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (islem_tarihi, store_id)
+                PRIMARY KEY (islem_tarihi, magaza_id)
             );
         """,
     )
 
-    # 2. Aşama: E-T-L (Extract - Transform - Load) İşlemi
-    # Ödemeleri çekip, mağaza bazında gruplayarak Data Mart tablosuna yazar
     veri_isle_ve_yukle = SQLExecuteQueryOperator(
-        task_id='extract_transform_load_store_data',
+        task_id='magaza_performans_verilerini_yukle',
         conn_id='postgres_pagila',
         sql="""
-            -- Tekilleştirme veya mükerrer kaydı önlemek için (Idempotency)
-            -- Çalıştırılan güne ait eski veriler varsa önce temizlenir.
-            DELETE FROM dm_daily_store_performance 
+            DELETE FROM magaza_haftalik_satis 
             WHERE islem_tarihi IN (SELECT DISTINCT DATE(payment_date) FROM payment);
-            
-            -- EXTRACT & TRANSFORM & LOAD
-            INSERT INTO dm_daily_store_performance (
+
+            INSERT INTO magaza_haftalik_satis (
                 islem_tarihi, 
-                store_id, 
-                majoz_personel, 
+                magaza_id, 
+                personel, 
                 toplam_ciro, 
                 toplam_islem_sayisi
             )
             SELECT 
                 DATE(p.payment_date) AS islem_tarihi,
-                s.store_id,
-                CONCAT(st.first_name, ' ', st.last_name) AS majoz_personel,
+                s.store_id AS magaza_id,
+                CONCAT(st.first_name, ' ', st.last_name) AS personel,
                 ROUND(SUM(p.amount), 2) AS toplam_ciro,
                 COUNT(p.payment_id) AS toplam_islem_sayisi
             FROM payment p

@@ -5,13 +5,13 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow import DAG
 
 varsayilan_ayarlar = {
-    'owner': 'veri_ekibi',
+    'owner': 'veri_muhendisi',
     'retries': 2,
     'retry_delay': timedelta(minutes=3),
 }
 
 with DAG(
-    dag_id='dm_film_sure_trendleri_etl',
+    dag_id='film_uzunluk_trendleri',
     default_args=varsayilan_ayarlar,
     description='Filmlerin süre gruplarına göre kiralama oranlarını analiz eder.',
     start_date=datetime(2026, 1, 1),
@@ -20,10 +20,10 @@ with DAG(
 ) as dag:
 
     tablo_olustur_task = SQLExecuteQueryOperator(
-        task_id='film_kiralama_sureleri_tablo_olustur',
+        task_id='film_uzunluk_trendleri_tablo_olustur',
         conn_id='postgres_pagila',
         sql="""
-            CREATE TABLE IF NOT EXISTS dm_film_length_trends (
+            CREATE TABLE IF NOT EXISTS film_uzunluk_trendleri (
                 sure_grubu VARCHAR(20) PRIMARY KEY,
                 film_sayisi INT,
                 toplam_kiralama_sayisi INT,
@@ -37,9 +37,9 @@ with DAG(
         task_id='film_sure_analizi_yukle',
         conn_id='postgres_pagila',
         sql="""
-            TRUNCATE TABLE dm_film_length_trends;
+            TRUNCATE TABLE film_uzunluk_trendleri;
 
-            INSERT INTO dm_film_length_trends (
+            INSERT INTO film_uzunluk_trendleri (
                 sure_grubu, 
                 film_sayisi, 
                 toplam_kiralama_sayisi, 
@@ -71,9 +71,8 @@ with DAG(
                 film_sayisi,
                 toplam_kiralama_sayisi,
                 ROUND(
-                    (toplam_kiralama_sayisi::NUMERIC / NULLIF(SUM(toplam_kiralama_sayisi) OVER (), 0)) * 100, 
-                    2
-                ) AS kiralama_yuzdesi
+                    (toplam_kiralama_sayisi::NUMERIC / NULLIF(SUM(toplam_kiralama_sayisi) OVER (), 0)) * 100, 2)
+                    AS kiralama_yuzdesi
             FROM agregasyon;
         """
     )

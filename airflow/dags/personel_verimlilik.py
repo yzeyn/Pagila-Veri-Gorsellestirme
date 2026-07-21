@@ -12,7 +12,7 @@ varsayilan_ayarlar = {
 }
 
 with DAG(
-    dag_id='veri_pazari_personel_verimlilik_akis',  # Tamamen Türkçe DAG ismi
+    dag_id='personel_verimlilik_akis',
     default_args=varsayilan_ayarlar,
     description='Personel bazlı haftalık kiralama, ciro ve sepet tutarı verimliliğini analiz eder',
     start_date=datetime(2026, 1, 1),
@@ -20,12 +20,11 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # 1. Aşama: Hedef Veri Pazarı (Data Mart) Tablosunu Oluştur
     tablo_olusturma_gorevi = SQLExecuteQueryOperator(
         task_id='personel_verimlilik_tablosu_olustur',
         conn_id='postgres_pagila',
         sql="""
-            CREATE TABLE IF NOT EXISTS vp_personel_verimlilik (
+            CREATE TABLE IF NOT EXISTS personel_verimlilik (
                 personel_id INT,
                 personel_adi VARCHAR(150),
                 yil_hafta VARCHAR(10),
@@ -37,16 +36,14 @@ with DAG(
             );
         """,
     )
-
-    # 2. Aşama: E-T-L (Extract - Transform - Load) İşlemi
-    # Personel işlemlerini ve ödemelerini haftalık bazda gruplar, işlem başına ortalama tutarı hesaplar
+    
     veri_isle_ve_yukle_gorevi = SQLExecuteQueryOperator(
         task_id='personel_verilerini_hesapla_ve_yukle',
         conn_id='postgres_pagila',
         sql="""
-            TRUNCATE TABLE vp_personel_verimlilik;
+            TRUNCATE TABLE personel_verimlilik;
             
-            INSERT INTO vp_personel_verimlilik (
+            INSERT INTO personel_verimlilik (
                 personel_id, 
                 personel_adi, 
                 yil_hafta, 
