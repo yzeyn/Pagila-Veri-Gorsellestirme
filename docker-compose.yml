@@ -1,0 +1,75 @@
+
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.7.1
+  environment:
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    - AIRFLOW__CORE__FERNET_KEY=fbZ9HOZ3bZ7ZxFg6Q7W_U1bZ6UjV2bZ7bZ8= # Test için rastgele bir anahtar
+    - AIRFLOW__CORE__LOAD_EXAMPLES=False
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/plugins:/opt/airflow/plugins
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # 1. VERİ TABANI SERVİSİ (PostgreSQL)
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgrespassword
+      - POSTGRES_DB=pagila
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pagila"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. AIRFLOW SERVİSLERİ
+  airflow-init:
+    <<: *airflow-common
+    command: version
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgrespassword@staj-proje-postgres-1:5432/airflow
+    # Bu servis sadece Airflow veri tabanını ilklendirmek (init) için çalışıp kapanacak
+
+  airflow-webserver:
+      <<: *airflow-common
+      command: webserver
+      ports:
+        - "8082:8080"
+      environment:
+        AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://postgres:postgrespassword@staj-proje-postgres-1:5432/airflow"
+        AIRFLOW__CORE__FERNET_KEY: "sfPQ6aam1naBSivAwVsKaIKRVfz6261Y-fWadgjaGVk="
+      restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://postgres:postgrespassword@staj-proje-postgres-1:5432/airflow"
+      AIRFLOW__CORE__FERNET_KEY: "sfPQ6aam1naBSivAwVsKaIKRVfz6261Y-fWadgjaGVk="
+    restart: always
+  # 3. GÖRSELLEŞTİRME SERVİSİ (Apache Superset)
+  superset:
+    build: .
+    ports:
+      - "8088:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=superset_secret_key_for_testing_12345
+    volumes:
+      - superset_data:/app/superset_home
+    restart: always
+
+volumes:
+  postgres_data:
+  superset_data:

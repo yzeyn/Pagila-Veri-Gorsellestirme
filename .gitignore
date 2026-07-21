@@ -1,0 +1,14 @@
+# Hassas şifre ve ortam değişkenleri
+.env
+
+# Docker ve Airflow geçici dosyaları/logları
+airflow/logs/
+*.log
+
+# Python derleme dosyaları
+__pycache__/
+*.pyc
+.venv/
+
+# VS Code özel ayarları
+.vscode/
