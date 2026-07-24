@@ -5,7 +5,7 @@ x-airflow-common: &airflow-common
   environment:
     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    - AIRFLOW__CORE__FERNET_KEY=fbZ9HOZ3bZ7ZxFg6Q7W_U1bZ6UjV2bZ7bZ8= # Test için rastgele bir anahtar
+    - AIRFLOW__CORE__FERNET_KEY=fbZ9HOZ3bZ7ZxFg6Q7W_U1bZ6UjV2bZ7bZ8=
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
   volumes:
     - ./airflow/dags:/opt/airflow/dags
@@ -16,7 +16,6 @@ x-airflow-common: &airflow-common
       condition: service_healthy
 
 services:
-  # 1. VERİ TABANI SERVİSİ (PostgreSQL)
   postgres:
     image: postgres:15
     environment:
@@ -34,13 +33,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. AIRFLOW SERVİSLERİ
+
   airflow-init:
     <<: *airflow-common
     command: version
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgrespassword@staj-proje-postgres-1:5432/airflow
-    # Bu servis sadece Airflow veri tabanını ilklendirmek (init) için çalışıp kapanacak
+
 
   airflow-webserver:
       <<: *airflow-common
@@ -59,7 +58,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://postgres:postgrespassword@staj-proje-postgres-1:5432/airflow"
       AIRFLOW__CORE__FERNET_KEY: "sfPQ6aam1naBSivAwVsKaIKRVfz6261Y-fWadgjaGVk="
     restart: always
-  # 3. GÖRSELLEŞTİRME SERVİSİ (Apache Superset)
+
   superset:
     build: .
     ports:

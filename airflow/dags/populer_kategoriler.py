@@ -35,7 +35,7 @@ with DAG(
     )
 
     populerlik_ve_stok_yukle = SQLExecuteQueryOperator(
-        task_id='calculate_popularity_and_stock_load',
+        task_id='populer_kategoriler_verilerini_hesapla_ve_yukle',
         conn_id='postgres_pagila',
         sql="""
             TRUNCATE TABLE populer_kategoriler;

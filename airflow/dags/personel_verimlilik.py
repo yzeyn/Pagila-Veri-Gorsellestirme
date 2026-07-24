@@ -54,13 +54,10 @@ with DAG(
             SELECT 
                 s.staff_id AS personel_id,
                 CONCAT(s.first_name, ' ', s.last_name) AS personel_adi,
-                -- Ödeme tarihini Yıl-Hafta formatına çeviriyoruz (Örn: 2005-22) (Transform)
+                -- Ödeme tarihi yıl-hafta formatına çevrildi
                 TO_CHAR(p.payment_date, 'YYYY-WW') AS yil_hafta,
-                -- Personelin gerçekleştirdiği kiralama/işlem sayısı
                 COUNT(p.payment_id) AS toplam_islem_sayisi,
-                -- Personelin kasaya soktuğu toplam ciro
                 ROUND(SUM(p.amount), 2) AS toplam_tahsilat,
-                -- İşlem başına düşen ortalama sepet/tahsilat tutarı (Transform)
                 ROUND(AVG(p.amount), 2) AS ortalama_sepet_tutari
             FROM staff s
             JOIN payment p ON s.staff_id = p.staff_id
